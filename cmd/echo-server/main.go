@@ -2,14 +2,12 @@ package main
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 
-	"github.com/gorilla/websocket"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -34,90 +32,31 @@ func main() {
 	}
 }
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(*http.Request) bool {
-		return true
-	},
-}
-
 func handler(wr http.ResponseWriter, req *http.Request) {
-	if os.Getenv("LOG_HTTP_BODY") != "" {
-		fmt.Printf("--------  %s | %s %s\n", req.RemoteAddr, req.Method, req.URL)
-		buf := &bytes.Buffer{}
-		buf.ReadFrom(req.Body)
-
-		if buf.Len() != 0 {
-			w := hex.Dumper(os.Stdout)
-			w.Write(buf.Bytes())
-			w.Close()
+	if req.Body != nil {
+		bodyBytes, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			panic(err)
 		}
 
+		fmtFunct(req.URL.Path)(bodyBytes)
 		// Replace original body with buffered version so it's still sent to the
 		// browser.
 		req.Body.Close()
 		req.Body = ioutil.NopCloser(
-			bytes.NewReader(buf.Bytes()),
+			bytes.NewReader(bodyBytes),
 		)
 	} else {
 		fmt.Printf("%s | %s %s\n", req.RemoteAddr, req.Method, req.URL)
 	}
-
-	if websocket.IsWebSocketUpgrade(req) {
-		serveWebSocket(wr, req)
-	} else if req.URL.Path == "/.ws" {
-		wr.Header().Add("Content-Type", "text/html")
-		wr.WriteHeader(200)
-		io.WriteString(wr, websocketHTML)
-	} else {
-		serveHTTP(wr, req)
-	}
+	serveHTTP(wr, req)
 }
 
-func serveWebSocket(wr http.ResponseWriter, req *http.Request) {
-	connection, err := upgrader.Upgrade(wr, req, nil)
-	if err != nil {
-		fmt.Printf("%s | %s\n", req.RemoteAddr, err)
-		return
+func fmtFunct(path string) func(b interface{}) {
+	if path == "/err" {
+		return func(b interface{}) { fmt.Errorf("%s\n", b) }
 	}
-
-	defer connection.Close()
-	fmt.Printf("%s | upgraded to websocket\n", req.RemoteAddr)
-
-	var message []byte
-
-	host, err := os.Hostname()
-	if err == nil {
-		message = []byte(fmt.Sprintf("Request served by %s", host))
-	} else {
-		message = []byte(fmt.Sprintf("Server hostname unknown: %s", err.Error()))
-	}
-
-	err = connection.WriteMessage(websocket.TextMessage, message)
-	if err == nil {
-		var messageType int
-
-		for {
-			messageType, message, err = connection.ReadMessage()
-			if err != nil {
-				break
-			}
-
-			if messageType == websocket.TextMessage {
-				fmt.Printf("%s | txt | %s\n", req.RemoteAddr, message)
-			} else {
-				fmt.Printf("%s | bin | %d byte(s)\n", req.RemoteAddr, len(message))
-			}
-
-			err = connection.WriteMessage(messageType, message)
-			if err != nil {
-				break
-			}
-		}
-	}
-
-	if err != nil {
-		fmt.Printf("%s | %s\n", req.RemoteAddr, err)
-	}
+	return func(b interface{}) { fmt.Printf("%s\n", b) }
 }
 
 func serveHTTP(wr http.ResponseWriter, req *http.Request) {

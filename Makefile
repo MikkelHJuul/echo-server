@@ -1,6 +1,6 @@
-DOCKER_REPO = jmalloc/echo-server
+DOCKER_REPO = mjuul/echo-server
 
-GO_MATRIX_OS := windows linux darwin
+GO_MATRIX_OS := linux
 GO_MATRIX_ARCH := amd64
 
 -include .makefiles/Makefile
