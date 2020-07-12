@@ -1,4 +1,4 @@
-package app
+package main
 
 import (
 	"bytes"
@@ -33,12 +33,12 @@ func main() {
 }
 
 func handler(wr http.ResponseWriter, req *http.Request) {
-	if req.Body != nil {
-		bodyBytes, err := ioutil.ReadAll(req.Body)
-		if err != nil {
-			panic(err)
-		}
-
+	fmt.Println(req.RemoteAddr + " | " + req.Method + " " + req.URL.String())
+	bodyBytes, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		panic(err)
+	}
+	if len(bodyBytes) != 0 {
 		fmtFunct(req.URL.Path)(bodyBytes)
 		// Replace original body with buffered version so it's still sent to the
 		// browser.
@@ -46,8 +46,6 @@ func handler(wr http.ResponseWriter, req *http.Request) {
 		req.Body = ioutil.NopCloser(
 			bytes.NewReader(bodyBytes),
 		)
-	} else {
-		fmt.Printf("%s | %s %s\n", req.RemoteAddr, req.Method, req.URL)
 	}
 	serveHTTP(wr, req)
 }

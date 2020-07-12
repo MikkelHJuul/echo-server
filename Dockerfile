@@ -1,10 +1,18 @@
 FROM golang:1.14 as builder
-
-RUN go build github.com/MikkelHJuul/echo-server
+ENV GO111MODULE=on \
+        CGO_ENABLED=0 \
+        GOOS=linux \
+        GOARCH=amd64
+WORKDIR /build
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
+COPY main.go .
+RUN go build -o echo-server .
 
 
 FROM scratch
-COPY --from=builder echo-server /
+COPY --from=builder /build/echo-server /
 ENV PORT 8080
 EXPOSE 8080
 ENTRYPOINT ["/echo-server"]
