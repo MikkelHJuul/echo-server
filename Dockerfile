@@ -1,5 +1,10 @@
+FROM golang:1.14 as builder
+
+RUN go build github.com/MikkelHJuul/echo-server
+
+
 FROM scratch
-COPY artifacts/build/release/linux/amd64/echo-server /bin/echo-server
+COPY --from=builder echo-server /
 ENV PORT 8080
 EXPOSE 8080
-ENTRYPOINT ["/bin/echo-server"]
+ENTRYPOINT ["/echo-server"]
