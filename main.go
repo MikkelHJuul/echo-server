@@ -7,9 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 )
 
 func main() {
@@ -22,10 +19,7 @@ func main() {
 
 	err := http.ListenAndServe(
 		":"+port,
-		h2c.NewHandler(
-			http.HandlerFunc(handler),
-			&http2.Server{},
-		),
+		http.HandlerFunc(handler),
 	)
 	if err != nil {
 		panic(err)
